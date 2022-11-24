@@ -1,0 +1,38 @@
+import cv2
+import csv
+import numpy as np
+
+
+class Calibration:
+    def __init__(self, filename):
+        self.file = filename
+
+    def read_data(self):
+        with open(self.file, 'r', newline='') as f:
+            reader = csv.DictReader(f)
+            camera_pts = []
+            robot_pts = []
+            for row in reader:
+                camera_pts.append([float(row["marker_X"]), float(row["marker_Y"])])
+                robot_pts.append([float(row["robot_X"]), float(row["robot_Y"])])
+            return np.array(camera_pts), np.array(robot_pts)
+
+    def get_calibration_matrix(self):
+        camera_pts, robot_pts = self.read_data()
+        m, _ = cv2.estimateAffine2D(camera_pts, robot_pts)
+        # it returns [A' B' C; D' E' F] and Inliers.
+        return m
+
+    def transfer_camera2robot(self, camera_x, camera_y):
+        m = self.get_calibration_matrix()
+        robot_x = (m[0][0] * camera_x) + (m[0][1] * camera_y) + m[0][2]
+        robot_y = (m[1][0] * camera_x) + (m[1][1] * camera_y) + m[1][2]
+        # robot_x = A'X + B'Y +C
+        # robot_y = D'X + E'Y +F
+        return robot_x, robot_y
+
+
+if __name__ == "__main__":
+    calib = Calibration("calibration_data.csv")
+    data = calib.get_calibration_matrix()
+    print(calib.transfer_camera2robot(364, 322))
